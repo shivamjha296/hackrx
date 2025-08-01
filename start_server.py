@@ -13,13 +13,13 @@ def check_python_environment():
     print(f"Using Python: {python_path}")
     
     # Check if we're in the virtual environment
-    if 'myenv' not in python_path:
-        print("Warning: Not using the virtual environment")
-        print("Please activate the virtual environment first:")
-        print("myenv\\Scripts\\activate")
-        return False
+    # if 'myenv' not in python_path:
+    #     print("Warning: Not using the virtual environment")
+    #     print("Please activate the virtual environment first:")
+    #     print("myenv\\Scripts\\activate")
+    #     return False
     
-    return True
+    # return True
 
 def install_requirements():
     """Install required packages"""

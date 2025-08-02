@@ -10,7 +10,6 @@ from tqdm import tqdm  # Fixed import for general Python use
 import gc
 from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
@@ -18,6 +17,9 @@ from langchain.prompts import PromptTemplate
 from langchain.llms.base import LLM
 from typing import Any, List, Optional, Mapping
 from pydantic import Field
+
+# Import custom Hugging Face API embeddings
+from huggingface_api_embeddings import HuggingFaceAPIEmbeddings
 import google.generativeai as genai
 
 import json
@@ -240,9 +242,8 @@ Answer:"""
         """Load a previously trained model."""
         print(f"Loading trained model from {path}...")
         try:
-            embeddings = HuggingFaceEmbeddings(
-                model_name="sentence-transformers/all-MiniLM-L6-v2",
-                model_kwargs={'device': self.device}
+            embeddings = HuggingFaceAPIEmbeddings(
+                model_name="sentence-transformers/all-MiniLM-L6-v2"
             )
             vectorstore = FAISS.load_local(path, embeddings, allow_dangerous_deserialization=True)
             qa_chain = self.setup_chatbot(vectorstore)

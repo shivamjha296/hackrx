@@ -31,9 +31,10 @@ class Config:
     CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "1200"))  # Smaller chunks for faster processing
     CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", "200"))  # Reduced overlap for speed
     
-    # Embeddings
-    EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
-    HUGGINGFACE_API_TOKEN = os.getenv("HUGGINGFACE_HUB_TOKEN")
+    # Embeddings - Using Hugging Face API instead of local models
+    EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "BAAI/bge-small-en-v1.5")  # Better API compatibility
+    HUGGINGFACE_API_TOKEN = os.getenv("HUGGINGFACE_API_TOKEN") or os.getenv("HUGGINGFACE_HUB_TOKEN")
+    USE_HUGGINGFACE_API = True  # Set to True to use API instead of local models
     
     # Vector Store (Optimized for speed)
     RETRIEVAL_K = int(os.getenv("RETRIEVAL_K", "3"))  # Fewer documents for faster retrieval
@@ -70,5 +71,15 @@ class Config:
         # Update the class variable if found in environment
         if os.getenv("BEARER_TOKEN"):
             cls.BEARER_TOKEN = os.getenv("BEARER_TOKEN")
+        
+        # Validate Hugging Face API token if using API embeddings
+        if cls.USE_HUGGINGFACE_API:
+            hf_token = os.getenv("HUGGINGFACE_API_TOKEN") or os.getenv("HUGGINGFACE_HUB_TOKEN") or cls.HUGGINGFACE_API_TOKEN
+            if not hf_token:
+                raise ValueError("HUGGINGFACE_API_TOKEN must be set when using Hugging Face API embeddings")
+            
+            # Update the class variable if found in environment
+            if os.getenv("HUGGINGFACE_API_TOKEN") or os.getenv("HUGGINGFACE_HUB_TOKEN"):
+                cls.HUGGINGFACE_API_TOKEN = hf_token
         
         return True

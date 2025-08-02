@@ -1,6 +1,5 @@
 langchain-community
 pypdf
-langchain-huggingface
 faiss-cpu
 torch
 tqdm
@@ -8,7 +7,6 @@ groq
 typing
 pydantic
 tf-keras
-sentence-transformers
 fastapi
 uvicorn
 python-multipart

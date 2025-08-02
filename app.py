@@ -11,6 +11,9 @@ from typing import List, Dict, Any, Optional
 import logging
 from pathlib import Path
 
+# Fix OpenMP library conflict
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+
 # FastAPI imports
 from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -31,13 +34,15 @@ from urllib.parse import urlparse
 # LangChain and ML imports
 from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain.chains import ConversationalRetrievalChain
 from langchain.prompts import PromptTemplate
 from langchain.llms.base import LLM
 from langchain.memory import ConversationBufferMemory
 from groq import Groq
+
+# Import custom Hugging Face API embeddings
+from huggingface_api_embeddings import HuggingFaceAPIEmbeddings
 import torch
 import gc
 
@@ -94,12 +99,13 @@ class QueryResponse(BaseModel):
     answers: List[str] = Field(..., description="List of answers corresponding to the questions")
     metadata: Optional[Dict[str, Any]] = Field(default=None, description="Additional metadata")
 
-# Custom Groq LLM class optimized for concise responses
+# Custom Groq LLM class optimized for concise responses and rate limiting
 class GroqLLM(LLM):
     model_name: str = "llama3-8b-8192"  # Fast model for low latency
     client: Any = Field(default=None)
     temperature: float = 0.1  # Low temperature for consistent, fast responses
-    max_tokens: int = 200  # Reduced for concise responses
+    max_tokens: int = 150  # Reduced for concise responses and rate limiting
+    request_delay: float = 0.5  # Add small delay between requests
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -111,8 +117,12 @@ class GroqLLM(LLM):
 
     def _call(self, prompt: str, stop: Optional[List[str]] = None, run_manager: Optional[Any] = None) -> str:
         try:
+            # Add small delay to respect rate limits
+            import time
+            time.sleep(self.request_delay)
+            
             # Optimize prompt for very concise, direct response
-            optimized_prompt = f"{prompt}\n\nAnswer in maximum 25 words. Be direct and include only key facts:"
+            optimized_prompt = f"{prompt}\n\nAnswer in maximum 20 words. Be direct and include only key facts:"
             
             response = self.client.chat.completions.create(
                 model=self.model_name,
@@ -275,31 +285,22 @@ class IntelligentQASystem:
             texts = text_splitter.split_documents(documents)
             logger.info(f"Created {len(texts)} text chunks")
             
-            # Create embeddings
+            # Create embeddings using Hugging Face API
             try:
-                # Try using HuggingFaceEmbeddings first
-                embeddings = HuggingFaceEmbeddings(
-                    model_name="sentence-transformers/all-MiniLM-L6-v2",
-                    model_kwargs={'device': self.device}
+                logger.info("Initializing Hugging Face API embeddings...")
+                embeddings = HuggingFaceAPIEmbeddings(
+                    model_name=Config.EMBEDDING_MODEL,
+                    api_token=Config.HUGGINGFACE_API_TOKEN,
+                    max_retries=3,
+                    retry_delay=1.0
                 )
-                print("hug")
+                logger.info("Hugging Face API embeddings initialized successfully")
             except Exception as e:
-                logger.warning(f"HuggingFaceEmbeddings failed: {e}, trying alternative...")
-                # Fallback to sentence-transformers directly
-                from sentence_transformers import SentenceTransformer
-                from langchain_core.embeddings import Embeddings
-                
-                class SentenceTransformerEmbeddings(Embeddings):
-                    def __init__(self, model_name: str):
-                        self.model = SentenceTransformer(model_name)
-                    
-                    def embed_documents(self, texts: List[str]) -> List[List[float]]:
-                        return self.model.encode(texts).tolist()
-                    
-                    def embed_query(self, text: str) -> List[float]:
-                        return self.model.encode([text])[0].tolist()
-                
-                embeddings = SentenceTransformerEmbeddings("sentence-transformers/all-MiniLM-L6-v2")
+                logger.error(f"Failed to initialize Hugging Face API embeddings: {str(e)}")
+                raise HTTPException(
+                    status_code=500, 
+                    detail=f"Failed to initialize embeddings: {str(e)}"
+                )
             
             # Create FAISS vectorstore
             vectorstore = FAISS.from_documents(texts, embeddings)
@@ -457,8 +458,10 @@ async def run_hackrx(
                 "processing_timestamp": datetime.now().isoformat(),
                 "model_info": {
                     "llm": "groq-llama3-8b-8192",
-                    "embeddings": "sentence-transformers/all-MiniLM-L6-v2",
-                    "vectorstore": "FAISS"
+                    "embeddings": "huggingface-api/BAAI/bge-small-en-v1.5",
+                    "embeddings_provider": "huggingface_api",
+                    "vectorstore": "FAISS",
+                    "local_processing": False
                 }
             }
         )

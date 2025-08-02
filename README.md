@@ -8,18 +8,31 @@ This is a comprehensive solution for the HackRX 5.0 hackathon challenge, impleme
 
 ### Core Capabilities
 - **Multi-format Document Processing**: Supports PDF, DOCX, and email documents
-- **Semantic Search**: FAISS-based vector embeddings for efficient document retrieval  
-- **LLM Integration**: Google Gemini 2.5 Flash Lite for intelligent response generation
+- **Semantic Search**: FAISS-based vector embeddings via Hugging Face API
+- **LLM Integration**: Groq's llama3-8b-8192 for ultra-fast intelligent response generation
 - **RESTful API**: FastAPI-based service with proper authentication
-- **Contextual Q&A**: Handles complex queries with explainable reasoning
-- **Real-time Processing**: Optimized for low-latency responses
+- **Contextual Q&A**: Handles complex queries with concise, factual responses
+- **Real-time Processing**: Optimized for sub-2 second response times
 
 ### Technical Specifications
-- **Embeddings**: Sentence Transformers (all-MiniLM-L6-v2)
+- **Embeddings**: Hugging Face API (BAAI/bge-small-en-v1.5)
 - **Vector Store**: FAISS for semantic similarity search
-- **LLM**: Google Gemini 2.5 Flash Lite
+- **LLM**: Groq llama3-8b-8192 (60-80% faster than Gemini)
 - **Framework**: FastAPI with async support
 - **Authentication**: Bearer token-based security
+
+## ⚡ API-Based Processing Migration
+
+### 🔄 **Architecture Change:**
+- ❌ **Before**: Local sentence-transformers (large model files, CPU intensive)
+- ✅ **After**: Hugging Face API calls (lightweight, scalable, cloud-ready)
+
+### 🎯 **Benefits:**
+- **Smaller Deployment**: No large model files to deploy (~200MB+ savings)
+- **Better Scalability**: API handles load balancing and optimization
+- **Cloud-Ready**: Perfect for serverless deployments (Netlify, Vercel, Railway)
+- **Cost Effective**: Pay-per-use instead of hosting costs
+- **Always Updated**: Latest models without manual updates
 
 ## 📁 Project Structure
 
@@ -42,7 +55,8 @@ hackrx/
 ### Prerequisites
 - Python 3.8+
 - Windows (PowerShell) environment
-- Valid Google Gemini API key
+- Valid Groq API key
+- Valid Hugging Face API token
 
 ### 1. Environment Setup
 ```powershell
@@ -63,14 +77,16 @@ Set up your environment variables:
 
 2. **Edit the `.env` file with your actual credentials:**
    ```bash
-   GEMINI_API_KEY=your_actual_gemini_api_key_here
-   BEARER_TOKEN=02b1ad646a69f58d41c75bb9ea5f78bbaf30389258623d713ff4115b554377f0
+   GROQ_API_KEY=your_actual_groq_api_key_here
+   HUGGINGFACE_API_TOKEN=your_actual_huggingface_token_here
+   BEARER_TOKEN=your_bearer_token_here
+   EMBEDDING_MODEL=BAAI/bge-small-en-v1.5
    ```
 
-3. **Get your Gemini API key:**
-   - Go to [Google AI Studio](https://makersuite.google.com/app/apikey)
-   - Create a new API key
-   - Add it to your `.env` file
+3. **Get your API keys:**
+   - **Groq API**: Go to [Groq Console](https://console.groq.com/keys)
+   - **Hugging Face**: Go to [Hugging Face Tokens](https://huggingface.co/settings/tokens)
+   - Add them to your `.env` file
 
 ### 3. Quick Start
 ```powershell
@@ -90,9 +106,9 @@ http://localhost:8000
 
 ### Authentication
 ```
-Authorization: Bearer 02b1ad646a69f58d41c75bb9ea5f78bbaf30389258623d713ff4115b554377f0
+Authorization: Bearer your_bearer_token_here
 ```
-*Note: This token is now loaded from environment variables for security*
+*Note: Replace with your actual bearer token from environment variables*
 
 ### Endpoints
 
@@ -131,8 +147,8 @@ Response:
     "total_questions": 2,
     "processing_timestamp": "2025-08-01T10:30:00",
     "model_info": {
-      "llm": "gemini-2.5-flash-lite",
-      "embeddings": "sentence-transformers/all-MiniLM-L6-v2",
+      "llm": "groq-llama3-8b-8192",
+      "embeddings": "huggingface-api/BAAI/bge-small-en-v1.5",
       "vectorstore": "FAISS"
     }
   }
@@ -161,11 +177,11 @@ python test_api.py
     ↓
 3. Text Extraction & Chunking
     ↓
-4. Embedding Generation (Sentence Transformers)
+4. Embedding Generation (Hugging Face API)
     ↓
 5. Vector Store Creation (FAISS)
     ↓
-6. Query Processing (LLM + Retrieval)
+6. Query Processing (Groq LLM + Retrieval)
     ↓
 7. Structured JSON Response
 ```

@@ -37,7 +37,7 @@ from langchain.chains import ConversationalRetrievalChain
 from langchain.prompts import PromptTemplate
 from langchain.llms.base import LLM
 from langchain.memory import ConversationBufferMemory
-import google.generativeai as genai
+from groq import Groq
 import torch
 import gc
 
@@ -72,8 +72,8 @@ app.add_middleware(
 # Security
 security = HTTPBearer()
 
-# Gemini API configuration
-genai.configure(api_key=Config.GEMINI_API_KEY)
+# Groq client configuration
+groq_client = Groq(api_key=Config.GROQ_API_KEY)
 
 # Global variables
 vectorstore = None
@@ -94,30 +94,43 @@ class QueryResponse(BaseModel):
     answers: List[str] = Field(..., description="List of answers corresponding to the questions")
     metadata: Optional[Dict[str, Any]] = Field(default=None, description="Additional metadata")
 
-# Custom Gemini LLM class
-class GeminiLLM(LLM):
-    model_name: str = "gemini-2.5-flash-lite"
-    model: Any = Field(default=None)
+# Custom Groq LLM class optimized for concise responses
+class GroqLLM(LLM):
+    model_name: str = "llama3-8b-8192"  # Fast model for low latency
+    client: Any = Field(default=None)
+    temperature: float = 0.1  # Low temperature for consistent, fast responses
+    max_tokens: int = 200  # Reduced for concise responses
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.model = genai.GenerativeModel(self.model_name)
+        self.client = groq_client
 
     @property
     def _llm_type(self) -> str:
-        return "gemini"
+        return "groq"
 
     def _call(self, prompt: str, stop: Optional[List[str]] = None, run_manager: Optional[Any] = None) -> str:
         try:
-            response = self.model.generate_content(prompt)
-            return response.text
+            # Optimize prompt for very concise, direct response
+            optimized_prompt = f"{prompt}\n\nAnswer in maximum 25 words. Be direct and include only key facts:"
+            
+            response = self.client.chat.completions.create(
+                model=self.model_name,
+                messages=[
+                    {"role": "user", "content": optimized_prompt}
+                ],
+                temperature=self.temperature,
+                max_tokens=self.max_tokens,
+                stream=False  # Disable streaming for faster processing in batch
+            )
+            return response.choices[0].message.content.strip()
         except Exception as e:
-            logger.error(f"Error in Gemini API call: {str(e)}")
+            logger.error(f"Error in Groq API call: {str(e)}")
             return "I apologize, but I encountered an error processing your request."
 
     @property
     def _identifying_params(self) -> Dict[str, Any]:
-        return {"model_name": self.model_name}
+        return {"model_name": self.model_name, "temperature": self.temperature}
 
 # Document processing utilities
 class DocumentProcessor:
@@ -303,7 +316,7 @@ class IntelligentQASystem:
         try:
             logger.info("Setting up QA chain...")
             
-            llm = GeminiLLM()
+            llm = GroqLLM()
             
             # Enhanced prompt template for structured responses
             prompt_template = """You are an intelligent document analysis assistant specializing in insurance, legal, HR, and compliance domains.
@@ -443,7 +456,7 @@ async def run_hackrx(
                 "total_questions": len(request.questions),
                 "processing_timestamp": datetime.now().isoformat(),
                 "model_info": {
-                    "llm": "gemini-2.5-flash-lite",
+                    "llm": "groq-llama3-8b-8192",
                     "embeddings": "sentence-transformers/all-MiniLM-L6-v2",
                     "vectorstore": "FAISS"
                 }

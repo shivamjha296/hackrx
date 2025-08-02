@@ -10,9 +10,9 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class Config:
-    # API Configuration
+    # API Configuration - Updated for deployment
     API_HOST = os.getenv("API_HOST", "0.0.0.0")
-    API_PORT = int(os.getenv("API_PORT", "8000"))
+    API_PORT = int(os.getenv("PORT", os.getenv("API_PORT", "8000")))  # Use PORT first, then API_PORT
     API_RELOAD = os.getenv("DEBUG", "True").lower() == "true"
     
     # Authentication
@@ -54,10 +54,21 @@ class Config:
     @classmethod
     def validate_config(cls):
         """Validate configuration settings"""
-        if not cls.GROQ_API_KEY or cls.GROQ_API_KEY == "your-groq-api-key-here":
+        # For deployment, check if GROQ_API_KEY exists in environment
+        groq_key = os.getenv("GROQ_API_KEY") or cls.GROQ_API_KEY
+        if not groq_key or groq_key == "your-groq-api-key-here":
             raise ValueError("GROQ_API_KEY must be set in environment variables or .env file")
         
-        if not cls.BEARER_TOKEN or cls.BEARER_TOKEN == "your-bearer-token-here":
+        # Update the class variable if found in environment
+        if os.getenv("GROQ_API_KEY"):
+            cls.GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+        
+        bearer_token = os.getenv("BEARER_TOKEN") or cls.BEARER_TOKEN
+        if not bearer_token or bearer_token == "your-bearer-token-here":
             raise ValueError("BEARER_TOKEN must be set in environment variables or .env file")
+            
+        # Update the class variable if found in environment
+        if os.getenv("BEARER_TOKEN"):
+            cls.BEARER_TOKEN = os.getenv("BEARER_TOKEN")
         
         return True

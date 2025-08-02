@@ -19,7 +19,7 @@ def check_python_environment():
     #     print("myenv\\Scripts\\activate")
     #     return False
     
-    # return True
+    return True
 
 def install_requirements():
     """Install required packages"""
